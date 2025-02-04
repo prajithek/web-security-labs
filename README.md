@@ -1,6 +1,6 @@
 # Web Security Labs 🚀
 
-This repository contains my learning journey through web security concepts, exercises, and hands-on labs from **Rana Khalil Academy**.
+This repository contains my learning journey through web security concepts, exercises, and hands-on labs
 
 ## 🔍 Overview
 
